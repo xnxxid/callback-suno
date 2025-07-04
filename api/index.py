@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for
 
 app = Flask(__name__)
 
@@ -13,8 +13,11 @@ def suno_callback():
     print(data)
 
     if isinstance(data, dict) and data.get("code") == 200:
-        task_id = (data.get("data", {}).get("task_id") if isinstance(
-            data.get("data"), dict) else None)
+        task_id = (
+            data.get("data", {}).get("task_id")
+            if isinstance(data.get("data"), dict)
+            else None
+        )
         if task_id:
             callback_results[task_id] = data
             print(f"✅ Data saved for task_id: {task_id}")
@@ -25,12 +28,21 @@ def suno_callback():
 @app.route("/results/<task_id>", methods=["GET"])
 def get_result(task_id):
     if task_id in callback_results:
-        return jsonify({
-            "message": "Result found",
-            "data": callback_results[task_id]
-        }), 200
+        return jsonify(
+            {"message": "Result found", "data": callback_results[task_id]}
+        ), 200
     else:
         return jsonify({"message": "Result not found for this task_id"}), 404
+
+
+@app.route("/delete/<task_id>", methods=["POST"])
+def delete_task(task_id):
+    if task_id in callback_results:
+        del callback_results[task_id]
+        print(f"🗑️ Deleted task_id: {task_id}")
+        return redirect(url_for("home"))
+    else:
+        return jsonify({"message": "Task ID not found."}), 404
 
 
 @app.route("/", methods=["GET"])
@@ -46,6 +58,9 @@ def home():
                 <div class="card">
                     <h3>(No Data)</h3>
                     <p><small>Task ID: {tid}</small></p>
+                    <form action="/delete/{tid}" method="post">
+                        <button type="submit" class="delete-btn">Delete</button>
+                    </form>
                 </div>
                 """
                 continue
@@ -71,8 +86,7 @@ def home():
                     "Audio Url": item.get("audio_url"),
                     "Source Audio Url": item.get("source_audio_url"),
                     "Stream Audio Url": item.get("stream_audio_url"),
-                    "Source Stream Audio Url":
-                    item.get("source_stream_audio_url"),
+                    "Source Stream Audio Url": item.get("source_stream_audio_url"),
                 }
                 valid_urls = {k: v for k, v in urls.items() if v}
 
@@ -104,6 +118,9 @@ def home():
                     <h3>{title}</h3>
                     <p class="task-id">Task ID: {tid}</p>
                     {versions_html}
+                    <form action="/delete/{tid}" method="post">
+                        <button type="submit" class="delete-btn">🗑️ Delete Task</button>
+                    </form>
                 </div>
             </div>
             """
@@ -208,6 +225,20 @@ def home():
             .btn:hover {{
                 background-color: #2980b9;
             }}
+            .delete-btn {{
+                margin-top: 10px;
+                padding: 8px 12px;
+                font-size: 13px;
+                background-color: #e74c3c;
+                color: #fff;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+            }}
+            .delete-btn:hover {{
+                background-color: #c0392b;
+            }}
             @media (max-width: 768px) {{
                 .card {{
                     flex-direction: column;
@@ -226,7 +257,7 @@ def home():
                 .button-group {{
                     justify-content: center;
                 }}
-                .btn {{
+                .btn, .delete-btn {{
                     flex: 1 1 100%;
                     text-align: center;
                 }}
