@@ -242,4 +242,3 @@ def home():
     </body>
     </html>
     """
-
